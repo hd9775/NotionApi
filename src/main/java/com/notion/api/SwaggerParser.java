@@ -4,7 +4,9 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,6 +14,9 @@ import com.notion.api.database.CreateDatabase;
 
 
 public class SwaggerParser {
+
+    public static final String DATABASE_ID = "";
+    public static final String AUTHORIZATION_Token = "";
 
     private static final CreateDatabase createDatabase = new CreateDatabase();
 
@@ -47,6 +52,15 @@ public class SwaggerParser {
 
                 JsonNode pathsNode = rootNode.path("paths");
 
+                Map<String, JsonNode> definitionMap = new HashMap<>();
+                JsonNode definitionsNode = rootNode.path("definitions");
+                Iterator<String> definitionsNames = definitionsNode.fieldNames();
+                while (definitionsNames.hasNext()) {
+                    String entry = definitionsNames.next();
+                    JsonNode entryNode = definitionsNode.path(entry).path("properties");
+                    definitionMap.put(entry, entryNode);
+                }
+
                 Iterator<String> fieldNames = pathsNode.fieldNames();
                 // API 경로
                 while (fieldNames.hasNext()) {
@@ -56,18 +70,25 @@ public class SwaggerParser {
                     // Method 종류
                     while (methodNames.hasNext()) {
                         String method = methodNames.next();
-                        if(method.equals("get")) {
-                            createDatabase.getMethod(entry, entryNode.path(method));
-                        } else if(method.equals("post")) {
-                            createDatabase.postMethod(entry, entryNode.path(method));
-                        } else if(method.equals("put")) {
-                            createDatabase.putMethod(entry, entryNode.path(method));
-                        } else if(method.equals("delete")) {
-                            createDatabase.deleteMethod(entry, entryNode.path(method));
-                        } else if(method.equals("patch")) {
-                            createDatabase.patchMethod(entry, entryNode.path(method));
-                        } else {
-                            System.out.println("알 수 없는 메소드입니다.");
+                        switch (method) {
+                            case "get":
+                                createDatabase.method("GET", entry, entryNode.path(method), definitionMap);
+                                break;
+                            case "post":
+                                createDatabase.method("POST", entry, entryNode.path(method), definitionMap);
+                                break;
+                            case "put":
+                                createDatabase.method("PUT", entry, entryNode.path(method), definitionMap);
+                                break;
+                            case "delete":
+                                createDatabase.method("DELETE", entry, entryNode.path(method), definitionMap);
+                                break;
+                            case "patch":
+                                createDatabase.method("PATCH", entry, entryNode.path(method), definitionMap);
+                                break;
+                            default:
+                                System.out.println("알 수 없는 메소드입니다.");
+                                break;
                         }
                     }
 
