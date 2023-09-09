@@ -9,6 +9,7 @@ import com.notion.api.Request;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -18,6 +19,54 @@ public class CreateDatabaseData {
     JsonBuilder jsonBuilder = new JsonBuilder();
     ObjectMapper objectMapper = new ObjectMapper();
     Request request = new Request();
+
+    public void create(String json) throws IOException {
+        JsonNode rootNode = objectMapper.readTree(json);
+
+        JsonNode pathsNode = rootNode.path("paths");
+
+        Map<String, JsonNode> definitionMap = new HashMap<>();
+        JsonNode definitionsNode = rootNode.path("definitions");
+        Iterator<String> definitionsNames = definitionsNode.fieldNames();
+        while (definitionsNames.hasNext()) {
+            String entry = definitionsNames.next();
+            JsonNode entryNode = definitionsNode.path(entry).path("properties");
+            definitionMap.put(entry, entryNode);
+        }
+
+        Iterator<String> fieldNames = pathsNode.fieldNames();
+        // API 경로
+        while (fieldNames.hasNext()) {
+            String entry = fieldNames.next();
+            JsonNode entryNode = pathsNode.path(entry);
+            Iterator<String> methodNames = entryNode.fieldNames();
+            // Method 종류
+            while (methodNames.hasNext()) {
+                String method = methodNames.next();
+                switch (method) {
+                    case "get":
+                        method("GET", entry, entryNode.path(method), definitionMap);
+                        break;
+                    case "post":
+                        method("POST", entry, entryNode.path(method), definitionMap);
+                        break;
+                    case "put":
+                        method("PUT", entry, entryNode.path(method), definitionMap);
+                        break;
+                    case "delete":
+                        method("DELETE", entry, entryNode.path(method), definitionMap);
+                        break;
+                    case "patch":
+                        method("PATCH", entry, entryNode.path(method), definitionMap);
+                        break;
+                    default:
+                        System.out.println("알 수 없는 메소드입니다.");
+                        break;
+                }
+            }
+
+        }
+    }
 
     public void method(String method, String entry, JsonNode methodNode, Map<String, JsonNode> definitionMap) throws IOException {
         JsonNode summaryNode = methodNode.path("summary");
@@ -47,7 +96,7 @@ public class CreateDatabaseData {
         HttpURLConnection con = request.sendRequest(url, urlMethod, json);
 
         // 응답 코드 확인
-        System.out.println(entry + " " + method + "에 대한 " + "POST" + " 요청에 대한 응답 코드: " + con.getResponseCode());
+        System.out.println("데이터 추가 요청에 대항 응답 코드: " + con.getResponseCode() + " -> " + method + "\t" + entry);
     }
 
     public ObjectNode checkResponseNode(JsonNode responseNode, Map<String, JsonNode> definitionMap) {
