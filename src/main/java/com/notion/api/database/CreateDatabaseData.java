@@ -1,59 +1,25 @@
 package com.notion.api.database;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.notion.api.SwaggerParser;
+import com.notion.api.Request;
 
-import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.URL;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Map;
 
-public class CreateDatabase {
+public class CreateDatabaseData {
     String url = "https://api.notion.com/v1/pages";
-
+    String urlMethod = "POST";
     JsonBuilder jsonBuilder = new JsonBuilder();
     ObjectMapper objectMapper = new ObjectMapper();
+    Request request = new Request();
 
-    public void sendRequest(String jsonBody, String entry, String methodType) {
-        try {
-            URL obj = new URL(url);
-            HttpURLConnection con = (HttpURLConnection) obj.openConnection();
-
-            // HTTP 요청 메소드 설정
-            con.setRequestMethod("POST");
-
-            // 요청 헤더 설정
-            con.setRequestProperty("Authorization", SwaggerParser.AUTHORIZATION_Token);
-            con.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-            con.setRequestProperty("Notion-Version", "2022-06-28");
-            con.setRequestProperty("Accept-Charset", "UTF-8");
-
-            // POST 요청을 허용하도록 설정
-            con.setDoOutput(true);
-
-            // 요청 바디 작성 및 전송
-            DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-            wr.write(jsonBody.getBytes(StandardCharsets.UTF_8));
-            wr.flush();
-            wr.close();
-
-            // 응답 코드 확인
-            int responseCode = con.getResponseCode();
-            System.out.println(entry + " " + methodType + "에 대한 " + "POST" + " 요청에 대한 응답 코드: " + responseCode);
-
-
-        } catch (Exception ignored) {
-        }
-    }
-
-    public void method(String method, String entry, JsonNode methodNode, Map<String, JsonNode> definitionMap) throws JsonProcessingException {
+    public void method(String method, String entry, JsonNode methodNode, Map<String, JsonNode> definitionMap) throws IOException {
         JsonNode summaryNode = methodNode.path("summary");
         JsonNode tagsNode = methodNode.path("tags");
         JsonNode parametersNode = methodNode.path("parameters");
@@ -76,9 +42,12 @@ public class CreateDatabase {
             }
         }
 
-        String json = jsonBuilder.create(parameterName.toString(), objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(responseNode), entry, summary, tag.toUpperCase(), method, "USER");
+        String json = jsonBuilder.createData(parameterName.toString(), objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(responseNode), entry, summary, tag.toUpperCase(), method, "USER");
 
-        sendRequest(json, entry, method);
+        HttpURLConnection con = request.sendRequest(url, urlMethod, json);
+
+        // 응답 코드 확인
+        System.out.println(entry + " " + method + "에 대한 " + "POST" + " 요청에 대한 응답 코드: " + con.getResponseCode());
     }
 
     public ObjectNode checkResponseNode(JsonNode responseNode, Map<String, JsonNode> definitionMap) {

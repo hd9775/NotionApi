@@ -10,7 +10,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.notion.api.database.CreateDatabase;
+import com.notion.api.database.CreateDatabaseData;
 
 
 public class SwaggerParser {
@@ -18,7 +18,7 @@ public class SwaggerParser {
     public static final String DATABASE_ID = "";
     public static final String AUTHORIZATION_Token = "";
 
-    private static final CreateDatabase createDatabase = new CreateDatabase();
+    private static final CreateDatabaseData createDatabase = new CreateDatabaseData();
 
     public static void main(String[] args) {
 
