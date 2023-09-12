@@ -36,9 +36,13 @@ public class DeleteDatabase {
                 if (idNode != null) {
                     String idValue = idNode.asText();
                     HttpURLConnection con = request.sendRequest(deleteUrl + idValue, deleteUrlMethod, "");
-                    System.out.println("데이터 삭제 요청에 대한 응답 코드: " + con.getResponseCode() + " -> "
-                            + result.get("properties").get("Method").get("select").get("name").asText()
-                            + "\t" + result.get("properties").get("Entry Point").get("title").get(0).get("text").get("content").asText());
+                    try {
+                        System.out.println("데이터 삭제 요청에 대한 응답 코드: " + con.getResponseCode() + " -> "
+                                + result.get("properties").get("Method").get("select").get("name").asText()
+                                + "\t" + result.get("properties").get("Entry Point").get("title").get(0).get("text").get("content").asText());
+                    } catch (Exception ignored) {
+                        System.out.println("error");
+                    }
                 }
             }
         }

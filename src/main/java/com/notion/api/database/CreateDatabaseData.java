@@ -106,11 +106,19 @@ public class CreateDatabaseData {
 
         while(responseNames.hasNext()) {
             String responseName = responseNames.next();
-            JsonNode response = responseNode.path(responseName).path("schema").path("items").path("$ref");
-            if(response.asText().contains("DTO")) {
-                String responseRef = response.asText().split("/")[2];
-                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(responseRef), definitionMap));
+            if(checkDefaultResponseCode(responseNode.path(responseName).path("description").asText())) {
+                continue;
+            }
 
+            JsonNode response = responseNode.path(responseName).path("schema").path("items").path("$ref");
+            JsonNode response2 = responseNode.path(responseName).path("schema").path("$ref");
+
+            String[] responseRef = response.asText().split("/");
+            String[] response2Ref = response2.asText().split("/");
+            if(responseRef.length == 3 && definitionMap.containsKey(responseRef[2])) {
+                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(responseRef[2]), definitionMap));
+            } else if(response2Ref.length == 3 && definitionMap.containsKey(response2Ref[2])) {
+                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(response2Ref[2]), definitionMap));
             } else {
                 modifiedResponseNode.set(responseName, responseNode.path(responseName));
             }
@@ -137,6 +145,32 @@ public class CreateDatabaseData {
         }
 
         return modifiedResponseDTONode;
+    }
+
+    public boolean checkDefaultResponseCode(String description) {
+        if(description.equals("Created")) {
+            return true;
+        } else if(description.equals("No Content")) {
+            return true;
+        } else if(description.equals("OK")) {
+            return true;
+        } else if(description.equals("Bad Request")) {
+            return true;
+        } else if(description.equals("Unauthorized")) {
+            return true;
+        } else if(description.equals("Forbidden")) {
+            return true;
+        } else if(description.equals("Not Found")) {
+            return true;
+        } else if(description.equals("Conflict")) {
+            return true;
+        } else if(description.equals("Unprocessable Entity")) {
+            return true;
+        } else if(description.equals("Internal Server Error")) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
 }
