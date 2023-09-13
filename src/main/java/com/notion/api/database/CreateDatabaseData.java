@@ -27,10 +27,17 @@ public class CreateDatabaseData {
 
         Map<String, JsonNode> definitionMap = new HashMap<>();
         JsonNode definitionsNode = rootNode.path("definitions");
+        JsonNode definitionsNode2 = rootNode.path("components").path("schemas");
         Iterator<String> definitionsNames = definitionsNode.fieldNames();
         while (definitionsNames.hasNext()) {
             String entry = definitionsNames.next();
             JsonNode entryNode = definitionsNode.path(entry).path("properties");
+            definitionMap.put(entry, entryNode);
+        }
+        Iterator<String> definitionsNames2 = definitionsNode2.fieldNames();
+        while (definitionsNames2.hasNext()) {
+            String entry = definitionsNames2.next();
+            JsonNode entryNode = definitionsNode2.path(entry).path("properties");
             definitionMap.put(entry, entryNode);
         }
 
@@ -112,18 +119,27 @@ public class CreateDatabaseData {
 
             JsonNode response = responseNode.path(responseName).path("schema").path("items").path("$ref");
             JsonNode response2 = responseNode.path(responseName).path("schema").path("$ref");
+            JsonNode response3 = responseNode.path(responseName).path("content").path("*/*").path("schema").path("$ref");
+            JsonNode response4 = responseNode.path(responseName).path("content").path("*/*").path("schema").path("items").path("$ref");
 
+            System.out.println(response.asText()+"-"+response2.asText()+"-"+response3.asText()+"-"+response4.asText());
             String[] responseRef = response.asText().split("/");
             String[] response2Ref = response2.asText().split("/");
+            String[] response3Ref = response3.asText().split("/");
+            String[] response4Ref = response4.asText().split("/");
+            System.out.println(responseRef.length+"-"+response2Ref.length+"-"+response3Ref.length+"-"+response4Ref.length);
             if(responseRef.length == 3 && definitionMap.containsKey(responseRef[2])) {
                 modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(responseRef[2]), definitionMap));
             } else if(response2Ref.length == 3 && definitionMap.containsKey(response2Ref[2])) {
                 modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(response2Ref[2]), definitionMap));
+            } else if(response3Ref.length == 4 && definitionMap.containsKey(response3Ref[3])) {
+                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(response3Ref[3]), definitionMap));
+            } else if(response4Ref.length == 4 && definitionMap.containsKey(response4Ref[3])) {
+                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(response4Ref[3]), definitionMap));
             } else {
                 modifiedResponseNode.set(responseName, responseNode.path(responseName));
             }
         }
-
         return modifiedResponseNode;
     }
 

@@ -22,7 +22,7 @@ public class SwaggerParser {
         String json = "";
 
         try {
-            String apiUrl = "http://localhost:8080/v2/api-docs";
+            String apiUrl = "http://localhost:8080/v3/api-docs";
             URL url = new URL(apiUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
