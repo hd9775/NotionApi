@@ -1,5 +1,6 @@
 package com.notion.api.database;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
@@ -9,9 +10,7 @@ import com.notion.api.Request;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 public class CreateDatabaseData {
     String url = "https://api.notion.com/v1/pages";
@@ -77,12 +76,15 @@ public class CreateDatabaseData {
 
     public void method(String method, String entry, JsonNode methodNode, Map<String, JsonNode> definitionMap) throws IOException {
         JsonNode summaryNode = methodNode.path("summary");
+        JsonNode roleNode = methodNode.path("description");
+        String role = (roleNode.asText() == null || roleNode.asText().equals("")) ? "ALL" : roleNode.asText();
         JsonNode tagsNode = methodNode.path("tags");
         JsonNode parametersNode = methodNode.path("parameters");
-        JsonNode responseNode = checkResponseNode(methodNode.path("responses"), definitionMap);
+        JsonNode requestBodyNode = methodNode.path("requestBody");
+        String responseString = checkResponseNode(methodNode.path("responses"), definitionMap);
 
         String summary = summaryNode.asText();
-        String tag = tagsNode.get(0).asText().split("-controller")[0];
+        String tag = tagsNode.get(0).asText().split("-controller")[0].replace("-", "");
         Iterator<JsonNode> parameters = parametersNode.elements();
         StringBuilder parameterName = new StringBuilder();
         while(parameters.hasNext()) {
@@ -98,49 +100,73 @@ public class CreateDatabaseData {
             }
         }
 
-        String json = jsonBuilder.createData(parameterName.toString(), objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(responseNode), entry, summary, tag.toUpperCase(), method, "USER");
+        String[] requestRef = requestBodyNode.path("content").path("application/json").path("schema").path("$ref").asText().split("/");
+
+        if(requestRef.length == 4 && definitionMap.containsKey(requestRef[3])) {
+            parameterName.append(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(definitionMap.get(requestRef[3])));
+        }
+
+        String json = jsonBuilder.createData(parameterName.toString(), responseString, entry, summary, tag.toUpperCase(), method, role);
 
         HttpURLConnection con = request.sendRequest(url, urlMethod, json);
 
+        if(con.getResponseCode() != 200) {
+            System.out.println(json);
+            System.out.println(con.getResponseMessage());
+        }
         // 응답 코드 확인
         System.out.println("데이터 추가 요청에 대항 응답 코드: " + con.getResponseCode() + " -> " + method + "\t" + entry);
     }
 
-    public ObjectNode checkResponseNode(JsonNode responseNode, Map<String, JsonNode> definitionMap) {
+    public String checkResponseNode(JsonNode responseNode, Map<String, JsonNode> definitionMap) throws JsonProcessingException {
+        StringBuilder responseString = new StringBuilder();
+
         Iterator<String> responseNames = responseNode.fieldNames();
 
         ObjectNode modifiedResponseNode = JsonNodeFactory.instance.objectNode();
 
+        Set<String> responseSet = new HashSet<>();
+        Map<String, String> responseCodeMap = new HashMap<>();
+
         while(responseNames.hasNext()) {
             String responseName = responseNames.next();
-            if(checkDefaultResponseCode(responseNode.path(responseName).path("description").asText())) {
+            String responseDescription = responseNode.path(responseName).path("description").asText();
+            if(checkDefaultResponseCode(responseDescription)) {
                 continue;
             }
 
-            JsonNode response = responseNode.path(responseName).path("schema").path("items").path("$ref");
-            JsonNode response2 = responseNode.path(responseName).path("schema").path("$ref");
             JsonNode response3 = responseNode.path(responseName).path("content").path("*/*").path("schema").path("$ref");
             JsonNode response4 = responseNode.path(responseName).path("content").path("*/*").path("schema").path("items").path("$ref");
 
-            System.out.println(response.asText()+"-"+response2.asText()+"-"+response3.asText()+"-"+response4.asText());
-            String[] responseRef = response.asText().split("/");
-            String[] response2Ref = response2.asText().split("/");
             String[] response3Ref = response3.asText().split("/");
             String[] response4Ref = response4.asText().split("/");
-            System.out.println(responseRef.length+"-"+response2Ref.length+"-"+response3Ref.length+"-"+response4Ref.length);
-            if(responseRef.length == 3 && definitionMap.containsKey(responseRef[2])) {
-                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(responseRef[2]), definitionMap));
-            } else if(response2Ref.length == 3 && definitionMap.containsKey(response2Ref[2])) {
-                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(response2Ref[2]), definitionMap));
-            } else if(response3Ref.length == 4 && definitionMap.containsKey(response3Ref[3])) {
-                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(response3Ref[3]), definitionMap));
+
+            if(response3Ref.length == 4 && definitionMap.containsKey(response3Ref[3])) {
+                responseSet.add(response3Ref[3]);
+                responseCodeMap.put(responseName, responseDescription);
             } else if(response4Ref.length == 4 && definitionMap.containsKey(response4Ref[3])) {
-                modifiedResponseNode.set(responseName, checkResponseDTONode(definitionMap.get(response4Ref[3]), definitionMap));
+                responseSet.add(response4Ref[3]);
+                responseCodeMap.put(responseName, responseDescription);
+                modifiedResponseNode.put(responseName, responseDescription);
             } else {
-                modifiedResponseNode.set(responseName, responseNode.path(responseName));
+                modifiedResponseNode.put(responseName, responseDescription);
             }
         }
-        return modifiedResponseNode;
+
+        Map<String, String> sortedMap = new TreeMap<>(responseCodeMap);
+        sortedMap.forEach(modifiedResponseNode::put);
+
+        responseString.append("Response Code\n");
+        responseString.append(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(modifiedResponseNode));
+
+        if(!responseSet.isEmpty()) {
+            responseString.append("\n\nResponse Data\n");
+
+            for(String responseRef : responseSet) {
+                responseString.append(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(checkResponseDTONode(definitionMap.get(responseRef), definitionMap))+ "\n");
+            }
+        }
+        return responseString.toString();
     }
 
     public JsonNode checkResponseDTONode(JsonNode responseDTONode, Map<String, JsonNode> definitionMap) {
@@ -152,8 +178,8 @@ public class CreateDatabaseData {
             String responseName = responseDTONames.next();
             JsonNode response = responseDTONode.path(responseName).path("$ref");
             String[] tmp = response.asText().split("/");
-            if(tmp.length == 3 && definitionMap.containsKey(tmp[2])) {
-                String responseRef = tmp[2];
+            if(tmp.length == 4 && definitionMap.containsKey(tmp[3])) {
+                String responseRef = tmp[3];
                 modifiedResponseDTONode.set(responseName, definitionMap.get(responseRef));
             } else {
                 modifiedResponseDTONode.set(responseName, responseDTONode.path(responseName));
