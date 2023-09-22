@@ -19,7 +19,7 @@ public class CreateDatabaseData {
     ObjectMapper objectMapper = new ObjectMapper();
     Request request = new Request();
 
-    public void create(String json) throws IOException {
+    public Map<Integer, Integer> create(String json) throws IOException {
         JsonNode rootNode = objectMapper.readTree(json);
 
         JsonNode pathsNode = rootNode.path("paths");
@@ -40,41 +40,53 @@ public class CreateDatabaseData {
             definitionMap.put(entry, entryNode);
         }
 
+        Map<Integer, Integer> responseCodeMap = new HashMap<>();
         Iterator<String> fieldNames = pathsNode.fieldNames();
         // API 경로
         while (fieldNames.hasNext()) {
             String entry = fieldNames.next();
             JsonNode entryNode = pathsNode.path(entry);
             Iterator<String> methodNames = entryNode.fieldNames();
+
             // Method 종류
             while (methodNames.hasNext()) {
                 String method = methodNames.next();
+
+                int responseCode = 0;
                 switch (method) {
                     case "get":
-                        method("GET", entry, entryNode.path(method), definitionMap);
+                        responseCode = method("GET", entry, entryNode.path(method), definitionMap);
                         break;
                     case "post":
-                        method("POST", entry, entryNode.path(method), definitionMap);
+                        responseCode = method("POST", entry, entryNode.path(method), definitionMap);
                         break;
                     case "put":
-                        method("PUT", entry, entryNode.path(method), definitionMap);
+                        responseCode = method("PUT", entry, entryNode.path(method), definitionMap);
                         break;
                     case "delete":
-                        method("DELETE", entry, entryNode.path(method), definitionMap);
+                        responseCode = method("DELETE", entry, entryNode.path(method), definitionMap);
                         break;
                     case "patch":
-                        method("PATCH", entry, entryNode.path(method), definitionMap);
+                        responseCode = method("PATCH", entry, entryNode.path(method), definitionMap);
                         break;
                     default:
                         System.out.println("알 수 없는 메소드입니다.");
                         break;
                 }
+
+                if(responseCodeMap.containsKey(responseCode)) {
+                    responseCodeMap.put(responseCode, responseCodeMap.get(responseCode) + 1);
+                } else {
+                    responseCodeMap.put(responseCode, 1);
+                }
             }
 
         }
+
+        return responseCodeMap;
     }
 
-    public void method(String method, String entry, JsonNode methodNode, Map<String, JsonNode> definitionMap) throws IOException {
+    public int method(String method, String entry, JsonNode methodNode, Map<String, JsonNode> definitionMap) throws IOException {
         JsonNode summaryNode = methodNode.path("summary");
         JsonNode roleNode = methodNode.path("description");
         String role = (roleNode.asText() == null || roleNode.asText().equals("")) ? "ALL" : roleNode.asText();
@@ -116,6 +128,8 @@ public class CreateDatabaseData {
         }
         // 응답 코드 확인
         System.out.println("데이터 추가 요청에 대항 응답 코드: " + con.getResponseCode() + " -> " + method + "\t" + entry);
+
+        return con.getResponseCode();
     }
 
     public String checkResponseNode(JsonNode responseNode, Map<String, JsonNode> definitionMap) throws JsonProcessingException {

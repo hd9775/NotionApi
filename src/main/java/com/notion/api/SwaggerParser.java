@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Map;
 
 import com.notion.api.database.CreateDatabaseData;
 import com.notion.api.database.DeleteDatabase;
@@ -14,6 +15,7 @@ public class SwaggerParser {
     public static final String DATABASE_ID = "";
     public static final String AUTHORIZATION_Token = "";
 
+    public static final String API_URL = "";
     private static final DeleteDatabase deleteDatabase = new DeleteDatabase();
     private static final CreateDatabaseData createDatabase = new CreateDatabaseData();
 
@@ -22,7 +24,7 @@ public class SwaggerParser {
         String json = "";
 
         try {
-            String apiUrl = "http://localhost:8080/v3/api-docs";
+            String apiUrl = API_URL;
             URL url = new URL(apiUrl);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod("GET");
@@ -51,10 +53,11 @@ public class SwaggerParser {
                 System.out.println("데이터베이스 삭제 완료.");
                 System.out.println("=========================");
 
-                createDatabase.create(json);
+                Map<Integer, Integer> responseCodeMap = createDatabase.create(json);
 
                 System.out.println("=========================");
                 System.out.println("데이터베이스를 추가완료.");
+                System.out.println(responseCodeMap.toString());
                 System.out.println("=========================");
             } else {
                 System.out.println("HTTP 요청 실패. 응답 코드: " + responseCode);
